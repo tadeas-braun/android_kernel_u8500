@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -15,15 +15,13 @@
 #include "mali_osk.h"
 
 
-typedef enum
-{
+typedef enum {
 	UMP_USED_BY_CPU = 0,
 	UMP_USED_BY_MALI = 1,
 	UMP_USED_BY_UNKNOWN_DEVICE= 100,
 } ump_hw_usage;
 
-typedef enum
-{
+typedef enum {
 	UMP_NOT_LOCKED = 0,
 	UMP_READ = 1,
 	UMP_READ_WRITE = 3,
@@ -33,8 +31,7 @@ typedef enum
 /*
  * This struct is what is "behind" a ump_dd_handle
  */
-typedef struct ump_dd_mem
-{
+typedef struct ump_dd_mem {
 	ump_secure_id secure_id;
 	_mali_osk_atomic_t ref_count;
 	unsigned long size_bytes;

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2012 ARM Limited. All rights reserved.
+ * Copyright (C) 2010-2013 ARM Limited. All rights reserved.
  * 
  * This program is free software and is provided to you under the terms of the GNU General Public License version 2
  * as published by the Free Software Foundation, and any use by you of this program is subject to the terms of such GNU licence.
@@ -20,8 +20,7 @@
 #include "mali_uk_types.h"
 
 #ifdef __cplusplus
-extern "C"
-{
+extern "C" {
 #endif
 
 /**
@@ -244,14 +243,23 @@ _mali_osk_errcode_t _mali_ukk_get_api_version( _mali_uk_get_api_version_s *args 
 /** @brief Get the user space settings applicable for calling process.
  *
  * @param args see _mali_uk_get_user_settings_s in "mali_utgard_uk_types.h"
+ * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
  */
 _mali_osk_errcode_t _mali_ukk_get_user_settings(_mali_uk_get_user_settings_s *args);
 
 /** @brief Get a user space setting applicable for calling process.
  *
  * @param args see _mali_uk_get_user_setting_s in "mali_utgard_uk_types.h"
+ * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
  */
 _mali_osk_errcode_t _mali_ukk_get_user_setting(_mali_uk_get_user_setting_s *args);
+
+/* @brief Grant or deny high priority scheduling for this session.
+ *
+ * @param args see _mali_uk_request_high_priority_s in "mali_utgard_uk_types.h"
+ * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
+ */
+_mali_osk_errcode_t _mali_ukk_request_high_priority(_mali_uk_request_high_priority_s *args);
 
 /** @} */ /* end group _mali_uk_core */
 
@@ -270,37 +278,6 @@ _mali_osk_errcode_t _mali_ukk_get_user_setting(_mali_uk_get_user_setting_s *args
  * - Allocate/deallocate MALI memory
  *
  * @{ */
-
-/**
- * @brief Initialize the Mali-MMU Memory system
- *
- * For Mali-MMU builds of the drivers, this function must be called before any
- * other functions in the \ref _mali_uk_memory group are called.
- *
- * @note This function is for Mali-MMU builds \b only. It should not be called
- * when the drivers are built without Mali-MMU support.
- *
- * @param args see \ref _mali_uk_init_mem_s in mali_utgard_uk_types.h
- * @return _MALI_OSK_ERR_OK on success, otherwise a suitable
- * _mali_osk_errcode_t on failure.
- */
-_mali_osk_errcode_t _mali_ukk_init_mem( _mali_uk_init_mem_s *args );
-
-/**
- * @brief Terminate the MMU Memory system
- *
- * For Mali-MMU builds of the drivers, this function must be called when
- * functions in the \ref _mali_uk_memory group will no longer be called. This
- * function must be called before the application terminates.
- *
- * @note This function is for Mali-MMU builds \b only. It should not be called
- * when the drivers are built without Mali-MMU support.
- *
- * @param args see \ref _mali_uk_term_mem_s in mali_utgard_uk_types.h
- * @return _MALI_OSK_ERR_OK on success, otherwise a suitable
- * _mali_osk_errcode_t on failure.
- */
-_mali_osk_errcode_t _mali_ukk_term_mem( _mali_uk_term_mem_s *args );
 
 /** @brief Map Mali Memory into the current user process
  *
@@ -357,6 +334,12 @@ _mali_osk_errcode_t _mali_ukk_query_mmu_page_table_dump_size( _mali_uk_query_mmu
  */
 _mali_osk_errcode_t _mali_ukk_dump_mmu_page_table( _mali_uk_dump_mmu_page_table_s * args );
 
+/** @brief Write user data to specified Mali memory without causing segfaults.
+ * @param args see _mali_uk_mem_write_safe_s in mali_utgard_uk_types.h
+ * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
+ */
+_mali_osk_errcode_t _mali_ukk_mem_write_safe( _mali_uk_mem_write_safe_s *args );
+
 /** @brief Map a physically contiguous range of memory into Mali
  * @param args see _mali_uk_map_external_mem_s in mali_utgard_uk_types.h
  * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
@@ -369,7 +352,7 @@ _mali_osk_errcode_t _mali_ukk_map_external_mem( _mali_uk_map_external_mem_s *arg
  */
 _mali_osk_errcode_t _mali_ukk_unmap_external_mem( _mali_uk_unmap_external_mem_s *args );
 
-#if MALI_USE_UNIFIED_MEMORY_PROVIDER != 0
+#if defined(CONFIG_MALI400_UMP)
 /** @brief Map UMP memory into Mali
  * @param args see _mali_uk_attach_ump_mem_s in mali_utgard_uk_types.h
  * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
@@ -380,7 +363,7 @@ _mali_osk_errcode_t _mali_ukk_attach_ump_mem( _mali_uk_attach_ump_mem_s *args );
  * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
  */
 _mali_osk_errcode_t _mali_ukk_release_ump_mem( _mali_uk_release_ump_mem_s *args );
-#endif /* MALI_USE_UNIFIED_MEMORY_PROVIDER */
+#endif /* CONFIG_MALI400_UMP */
 
 /** @brief Determine virtual-to-physical mapping of a contiguous memory range
  * (optional)
@@ -449,10 +432,22 @@ _mali_osk_errcode_t _mali_ukk_va_to_mali_pa( _mali_uk_va_to_mali_pa_s * args );
  *
  * Job completion can be awaited with _mali_ukk_wait_for_notification().
  *
- * @param args see _mali_uk_pp_start_job_s in "mali_utgard_uk_types.h"
+ * @param ctx user-kernel context (mali_session)
+ * @param uargs see _mali_uk_pp_start_job_s in "mali_utgard_uk_types.h". Use _mali_osk_copy_from_user to retrieve data!
  * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
  */
-_mali_osk_errcode_t _mali_ukk_pp_start_job( _mali_uk_pp_start_job_s *args );
+_mali_osk_errcode_t _mali_ukk_pp_start_job( void *ctx, _mali_uk_pp_start_job_s *uargs );
+
+/**
+ * @brief Issue a request to start new jobs on both Vertex Processor and Fragment Processor.
+ *
+ * @note Will call into @ref _mali_ukk_pp_start_job and @ref _mali_ukk_gp_start_job.
+ *
+ * @param ctx user-kernel context (mali_session)
+ * @param uargs see _mali_uk_pp_and_gp_start_job_s in "mali_utgard_uk_types.h". Use _mali_osk_copy_from_user to retrieve data!
+ * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
+ */
+_mali_osk_errcode_t _mali_ukk_pp_and_gp_start_job( void *ctx, _mali_uk_pp_and_gp_start_job_s *uargs );
 
 /** @brief Returns the number of Fragment Processors in the system
  *
@@ -502,10 +497,11 @@ void _mali_ukk_pp_job_disable_wb(_mali_uk_pp_disable_wb_s *args);
  *
  * Job completion can be awaited with _mali_ukk_wait_for_notification().
  *
- * @param args see _mali_uk_gp_start_job_s in "mali_utgard_uk_types.h"
+ * @param ctx user-kernel context (mali_session)
+ * @param uargs see _mali_uk_gp_start_job_s in "mali_utgard_uk_types.h". Use _mali_osk_copy_from_user to retrieve data!
  * @return _MALI_OSK_ERR_OK on success, otherwise a suitable _mali_osk_errcode_t on failure.
  */
-_mali_osk_errcode_t _mali_ukk_gp_start_job( _mali_uk_gp_start_job_s *args );
+_mali_osk_errcode_t _mali_ukk_gp_start_job( void *ctx, _mali_uk_gp_start_job_s *uargs );
 
 /** @brief Returns the number of Vertex Processors in the system.
  *
@@ -536,7 +532,7 @@ _mali_osk_errcode_t _mali_ukk_gp_suspend_response( _mali_uk_gp_suspend_response_
 
 /** @} */ /* end group _mali_uk_gp */
 
-#if MALI_TIMELINE_PROFILING_ENABLED
+#if defined(CONFIG_MALI400_PROFILING)
 /** @addtogroup _mali_uk_profiling U/K Timeline profiling module
  * @{ */
 
@@ -604,6 +600,12 @@ _mali_osk_errcode_t _mali_ukk_sw_counters_report(_mali_uk_sw_counters_report_s *
 /** @} */ /* end group uddapi */
 
 u32 _mali_ukk_report_memory_usage(void);
+
+u32 _mali_ukk_utilization_gp_pp(void);
+
+u32 _mali_ukk_utilization_gp(void);
+
+u32 _mali_ukk_utilization_pp(void);
 
 #ifdef __cplusplus
 }
